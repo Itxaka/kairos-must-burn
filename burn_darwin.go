@@ -64,3 +64,8 @@ func getDeviceWrittenBytes(devicePath string) (int64, error) {
 	// In a real implementation, you'd track actual bytes written
 	return 0, nil
 }
+
+func FormatDriveGPT(deviceID string) error {
+	panic("Implement!")
+	return nil
+}

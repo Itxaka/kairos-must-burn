@@ -27,7 +27,8 @@ func ListUSBDrives() []string {
 	for _, d := range dst {
 		if d.InterfaceType == "USB" || strings.Contains(strings.ToLower(d.MediaType), "external") || d.MediaType == "Removable Media" {
 			fmt.Println("Found USB drive:", d)
-			drives = append(drives, fmt.Sprintf("%s (%s)", d.Model, d.DeviceID))
+			formattedSize := fmt.Sprintf("%.2f GB", float64(d.Size/(1024*1024*1024))) // Convert to GB
+			drives = append(drives, fmt.Sprintf("%s (%s %s)", d.DeviceID, d.Model, formattedSize))
 		}
 	}
 

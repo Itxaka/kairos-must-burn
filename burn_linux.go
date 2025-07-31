@@ -30,3 +30,8 @@ func reallyBurn(isoPath, devicePath string, totalSize int64, progress *gtk.Progr
 func Sync() {
 	syscall.Sync()
 }
+
+func FormatDriveGPT(deviceID string) error {
+	panic("Implement!")
+	return nil
+}

@@ -227,6 +227,8 @@ func main() {
 			content.SetVAlign(gtk.AlignCenter)
 
 			// Add image above progress bar and make it bigger
+			logo = gtk.NewImageFromFile(f.Name())
+			logo.SetPixelSize(256) // Make the image bigger
 			content.Append(logo)
 
 			progress := gtk.NewProgressBar()

@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"io"
 	"os"
 	"strings"
-
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 const (
@@ -29,6 +28,16 @@ func Burn(isoPath, drive string, progress *gtk.ProgressBar, status *gtk.Label, e
 
 	// Extract raw device path from the drive string (which might include description)
 	devicePath := strings.Fields(drive)[0]
+
+	// Format the drive with GPT before burning
+	glib.IdleAdd(func() {
+		status.SetLabel("Formatting drive...")
+	})
+	err := FormatDriveGPT(devicePath)
+	if err != nil {
+		reportError(status, exitBtn, fmt.Sprintf("Error formatting drive: %v", err))
+		return
+	}
 
 	// Get file size for progress calculation
 	fileInfo, err := os.Stat(isoPath)
@@ -69,7 +78,6 @@ func copyWithProgress(src io.Reader, dst io.Writer, totalSize int64, progress *g
 		if _, err := dst.Write(buf[:n]); err != nil {
 			return err
 		}
-
 		Sync()
 
 		written += int64(n)
