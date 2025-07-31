@@ -12,7 +12,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-//go:embed logo.png
+//go:embed kairos-must-burn.png
 var logoData []byte
 
 func main() {
