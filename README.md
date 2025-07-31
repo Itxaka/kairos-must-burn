@@ -1,4 +1,4 @@
-![Kairos Burner Logo](kairos-must-burn.png)
+![Kairos Burner Logo](Resources/kairos-must-burn.png)
 
 # Kairos Burner
 

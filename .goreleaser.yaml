@@ -14,7 +14,7 @@ builds:
     ldflags:
       - -w -s -H=windowsgui
     binary: '{{ .ProjectName }}'
-    id: windows
+    id: build-windows
   - env:
       - CGO_ENABLED=1
     goos:
@@ -24,10 +24,15 @@ builds:
     ldflags:
       - -w -s
     binary: '{{ .ProjectName }}'
-    id: linux
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
+    id: build-linux
+  - env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    ldflags:
+      - -w -s
+    binary: '{{ .ProjectName }}'
+    # TODO: after build, it should copy the binary into the kairos-must-burn.app dir to have a proper macos app
+    id: build-darwin

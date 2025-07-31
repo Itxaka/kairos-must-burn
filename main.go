@@ -11,7 +11,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-//go:embed kairos-must-burn.png
+//go:embed Resources/kairos-must-burn.png
 var logoData []byte
 
 func main() {
@@ -103,6 +103,7 @@ func main() {
 
 			// Show dialog
 			dialog.SetVisible(true)
+			dialog.Present()
 
 			// Connect exit button click
 			exitBtn.ConnectClicked(func() {
@@ -215,6 +216,7 @@ func main() {
 
 		win.SetChild(layout)
 		win.SetVisible(true)
+
 		win.Present() // Bring window to the foreground and give it focus
 
 		// Function to start the burning process
