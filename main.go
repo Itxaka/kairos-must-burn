@@ -25,7 +25,7 @@ func main() {
 	}
 	f.Close() // Close the file to ensure it's written
 
-	app := gtk.NewApplication("com.kairos.isoburn", gio.ApplicationFlagsNone)
+	app := gtk.NewApplication("com.kairos.isoburn", gio.ApplicationHandlesOpen|gio.ApplicationDefaultFlags)
 
 	app.ConnectActivate(func() {
 		win := gtk.NewApplicationWindow(app)
@@ -215,6 +215,7 @@ func main() {
 
 		win.SetChild(layout)
 		win.SetVisible(true)
+		win.Present() // Bring window to the foreground and give it focus
 
 		// Function to start the burning process
 		startBurning := func() {

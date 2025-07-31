@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/block"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,7 @@ import (
 
 func ListUSBDrives() []string {
 	var drives []string
-	b, err := block.New(ghw.WithDisableTools())
+	b, err := block.New()
 	if err != nil {
 		fmt.Println("Error detecting block devices:", err)
 		return []string{"No USB devices found"}
