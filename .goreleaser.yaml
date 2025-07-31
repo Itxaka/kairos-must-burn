@@ -8,12 +8,23 @@ builds:
   - env:
       - CGO_ENABLED=1
     goos:
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -w -s -H=windowsgui
+    binary: '{{ .ProjectName }}'
+    id: windows
+  - env:
+      - CGO_ENABLED=1
+    goos:
       - linux
     goarch:
       - amd64
     ldflags:
       - -w -s
     binary: '{{ .ProjectName }}'
+    id: linux
 changelog:
   sort: asc
   filters:

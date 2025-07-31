@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	_ "embed"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -10,7 +12,22 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+//go:embed logo.png
+var logoData []byte
+
 func main() {
+	f, err := os.CreateTemp("", "logo.png")
+	if err != nil {
+		panic("Failed to create temporary logo file: " + err.Error())
+	}
+	defer os.Remove(f.Name()) // Clean up temporary file
+	if _, err := f.Write(logoData); err != nil {
+		panic("Failed to write logo data to temporary file: " + err.Error())
+	}
+	f.Close() // Close the file to ensure it's written
+	// Set the temporary file as the logo path
+	fmt.Println(f.Name())
+
 	app := gtk.NewApplication("com.kairos.isoburn", gio.ApplicationFlagsNone)
 
 	app.ConnectActivate(func() {
@@ -187,7 +204,7 @@ func main() {
 		})
 
 		// Add image at the top and make it bigger
-		logo := gtk.NewImageFromFile("logo.png")
+		logo := gtk.NewImageFromFile(f.Name())
 		logo.SetPixelSize(256) // Make the image bigger
 		layout := gtk.NewBox(gtk.OrientationVertical, 10)
 		layout.SetMarginTop(20)
@@ -213,8 +230,6 @@ func main() {
 			content.SetVAlign(gtk.AlignCenter)
 
 			// Add image above progress bar and make it bigger
-			logo := gtk.NewImageFromFile("logo.png")
-			logo.SetPixelSize(256)
 			content.Append(logo)
 
 			progress := gtk.NewProgressBar()
