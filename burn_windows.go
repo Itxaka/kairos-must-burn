@@ -2,7 +2,16 @@
 
 package main
 
-import "github.com/diamondburned/gotk4/pkg/gtk/v4"
+import (
+	"fmt"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
 
 func reallyBurn(isoPath, devicePath string, totalSize int64, progress *gtk.ProgressBar, status *gtk.Label) error {
 	// Format device path for Windows (e.g., "\\.\PHYSICALDRIVE1")
@@ -69,4 +78,8 @@ func burnWithPowerShell(isoPath, devicePath string, totalSize int64, progress *g
 	}()
 
 	return cmd.Wait()
+}
+
+func Sync() {
+	// no-op
 }

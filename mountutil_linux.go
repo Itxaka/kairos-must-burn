@@ -1,3 +1,5 @@
+//go:build linux
+
 package main
 
 import (
@@ -46,7 +48,7 @@ func UnmountDevice(partitions []string) error {
 			return fmt.Errorf("failed to unmount %s: %w", part, err)
 		}
 	}
-	
+
 	return nil
 }
 

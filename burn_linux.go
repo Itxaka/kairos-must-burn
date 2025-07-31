@@ -26,3 +26,7 @@ func reallyBurn(isoPath, devicePath string, totalSize int64, progress *gtk.Progr
 	// Copy with progress tracking
 	return copyWithProgress(isoFile, deviceFile, totalSize, progress, status)
 }
+
+func Sync() {
+	syscall.Sync()
+}

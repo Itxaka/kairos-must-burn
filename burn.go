@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"io"
 	"os"
 	"strings"
-	"syscall"
+
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 const (
@@ -70,7 +70,7 @@ func copyWithProgress(src io.Reader, dst io.Writer, totalSize int64, progress *g
 			return err
 		}
 
-		syscall.Sync()
+		Sync()
 
 		written += int64(n)
 		percent := float64(written) / float64(totalSize)

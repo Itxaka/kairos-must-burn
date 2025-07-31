@@ -23,7 +23,7 @@ func CheckElevatedPermissions() (bool, error) {
 		&sid)
 
 	if err != nil {
-		return false, fmt.Errorf("Error while checking for elevated permissions: %s", err)
+		return false, fmt.Errorf("error while checking for elevated permissions: %s", err)
 	}
 
 	//We must free the sid to prevent security token leaks
@@ -32,19 +32,18 @@ func CheckElevatedPermissions() (bool, error) {
 	userIsAdmin, err = isAdmin()
 
 	if err != nil {
-		return false, fmt.Errorf("Error while checking admin group membership: %s", err)
+		return false, fmt.Errorf("error while checking admin group membership: %s", err)
 	}
 
 	// Run as administrator
 	member, err := token.IsMember(sid)
 
 	if err != nil {
-		return false, fmt.Errorf("Error while checking for elevated permissions: %s", err)
+		return false, fmt.Errorf("error while checking for elevated permissions: %s", err)
 	}
 
 	if !member {
 		return false, fmt.Errorf("we need to run with administrator permissions. Run as admin is: %t, User in admin group: %t", member, userIsAdmin)
-
 	}
 
 	return true, nil
