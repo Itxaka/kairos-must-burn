@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -25,8 +24,6 @@ func main() {
 		panic("Failed to write logo data to temporary file: " + err.Error())
 	}
 	f.Close() // Close the file to ensure it's written
-	// Set the temporary file as the logo path
-	fmt.Println(f.Name())
 
 	app := gtk.NewApplication("com.kairos.isoburn", gio.ApplicationFlagsNone)
 

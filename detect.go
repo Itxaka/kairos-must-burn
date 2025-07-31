@@ -1,3 +1,6 @@
+//go:build linux && darwin
+
+package mai
 package main
 
 import (
