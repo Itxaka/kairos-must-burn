@@ -2,7 +2,16 @@
 
 package main
 
-import "github.com/diamondburned/gotk4/pkg/gtk/v4"
+import (
+	"fmt"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"os"
+	"os/exec"
+	"strings"
+	"syscall"
+	"time"
+)
 
 func reallyBurn(isoPath, devicePath string, totalSize int64, progress *gtk.ProgressBar, status *gtk.Label) error {
 	// Convert /dev/diskX to /dev/rdiskX for better performance on macOS
@@ -63,6 +72,10 @@ func getDeviceWrittenBytes(devicePath string) (int64, error) {
 	// Just return an estimate based on time elapsed
 	// In a real implementation, you'd track actual bytes written
 	return 0, nil
+}
+
+func Sync() {
+	syscall.Sync()
 }
 
 func FormatDriveGPT(deviceID string) error {
