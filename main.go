@@ -14,6 +14,7 @@ import (
 //go:embed Resources/kairos-must-burn.png
 var logoData []byte
 var lastVersionList []string
+var isoPath string // Make isoPath package-level
 
 func main() {
 	f, err := os.CreateTemp("", "logo.png")
@@ -121,7 +122,6 @@ func main() {
 		burnBtn := gtk.NewButtonWithLabel("🔥 Burn!")
 		burnBtn.SetSensitive(false)
 
-		var isoPath string
 		var drive string
 
 		isoBtn := gtk.NewButtonWithLabel("💿 Select ISO")
@@ -211,8 +211,16 @@ func main() {
 		layout.Append(logo)
 		layout.Append(isoBtn)
 
-		// Add "Download ISOs" button below isoBtn
-		layout.Append(getDownloadWindow())
+		// Pass a callback to getDownloadWindow to set isoPath and update isoBtn label
+		layout.Append(getDownloadWindow(func(newPath string) {
+			isoPath = newPath
+			isoBtn.SetLabel("ISO: " + isoPath)
+			if drive != "" {
+				burnBtn.SetSensitive(true)
+			} else {
+				burnBtn.SetSensitive(false)
+			}
+		}))
 
 		layout.Append(driveBox)
 		layout.Append(burnBtn)

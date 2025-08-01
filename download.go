@@ -19,7 +19,7 @@ var filteredAssets []ReleaseAsset // Store filtered assets for dropdowns
 var saveFilePath string           // Store the path to save the downloaded file
 // This covers the
 
-func getDownloadWindow() *gtk.Button {
+func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 	downloadBtn := gtk.NewButtonWithLabel("Download ISOs")
 	downloadBtn.ConnectClicked(func() {
 		// Open a new window for ISO downloads
@@ -226,6 +226,8 @@ func getDownloadWindow() *gtk.Button {
 							// For now, just close the window:
 							downloadWin.Close()
 						})
+						// Call the callback to set the ISO path in the main window
+						onDownloaded(file.Path())
 					})
 				}()
 			})
