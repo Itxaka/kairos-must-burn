@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"os"
+	"syscall"
 )
 
 func reallyBurn(isoPath, devicePath string, totalSize int64, progress *gtk.ProgressBar, status *gtk.Label) error {
