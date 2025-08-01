@@ -11,10 +11,12 @@ import (
 )
 
 // ReleaseAsset represents an asset grouped by version
+// Add ID field for unique asset identification
 type ReleaseAsset struct {
 	Version string
 	Name    string
 	URL     string
+	ID      int64 // Add asset ID for unique identification
 }
 
 // FetchReleaseAssets fetches releases and parses assets
@@ -41,6 +43,7 @@ func FetchReleaseAssets(ctx context.Context, owner, repo string) ([]ReleaseAsset
 				Version: version,
 				Name:    name,
 				URL:     asset.GetBrowserDownloadURL(),
+				ID:      asset.GetID(), // Store asset ID
 			})
 		}
 	}

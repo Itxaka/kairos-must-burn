@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Masterminds/semver/v3"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"os"
@@ -11,8 +12,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
+var filteredAssets []ReleaseAsset // Store filtered assets for dropdowns
+var saveFilePath string           // Store the path to save the downloaded file
 // This covers the
 
 func getDownloadWindow() *gtk.Button {
@@ -90,14 +94,142 @@ func getDownloadWindow() *gtk.Button {
 		assetDropdown.SetHExpand(true)
 		assetDropdown.SetSensitive(false)
 		assetBox.Append(assetDropdown)
+		vbox.Append(assetBox)
 
-		// Add Download button
+		// Move Download button to bottom, outside assetBox
+		buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 10)
+		buttonBox.SetHAlign(gtk.AlignEnd)
+		buttonBox.SetMarginTop(20)
 		assetDownloadBtn := gtk.NewButtonWithLabel("Download")
 		assetDownloadBtn.SetHExpand(false)
+		assetDownloadBtn.SetVExpand(false)
+		assetDownloadBtn.SetSizeRequest(-1, -1) // Default size
+		assetDownloadBtn.SetMarginTop(0)
+		assetDownloadBtn.SetMarginBottom(0)
 		assetDownloadBtn.SetSensitive(true)
-		assetBox.Append(assetDownloadBtn)
+		buttonBox.Append(assetDownloadBtn)
+		vbox.Append(buttonBox)
 
-		vbox.Append(assetBox)
+		// Move refreshCacheBtn to the bottom of the vbox
+		refreshCacheBtn := gtk.NewButtonWithLabel("Refresh Releases")
+		refreshCacheBtn.SetHAlign(gtk.AlignCenter)
+		refreshCacheBtn.SetMarginTop(10)
+		refreshCacheBtn.SetVExpand(false)
+
+		assetDownloadBtn.ConnectClicked(func() {
+			selectedIdx := assetDropdown.Selected()
+			if selectedIdx < 0 || int(selectedIdx) >= len(filteredAssets) {
+				fmt.Println("No valid asset selected")
+				return
+			}
+			selectedAsset := filteredAssets[selectedIdx]
+
+			fmt.Printf("Downloading asset: %s (ID: %d) for version: %s\n", selectedAsset.Name, selectedAsset.ID, selectedAsset.Version)
+			// Here you would implement the actual download logic using selectedAsset.ID
+			// Open a file dialog to choose save location
+			fileDialog := gtk.NewFileDialog()
+			fileDialog.SetTitle("Save ISO File")
+			fileDialog.SetAcceptLabel("Save")
+			fileDialog.SetModal(true)
+			homeDir, err := getHomeDirectory()
+			if err == nil && homeDir != "" {
+				fileDialog.SetInitialFile(gio.NewFileForPath(filepath.Join(homeDir, selectedAsset.Name)))
+			} else {
+				fileDialog.SetInitialFile(gio.NewFileForPath(selectedAsset.Name))
+			}
+
+			fileDialog.Save(context.Background(), downloadWin, func(res gio.AsyncResulter) {
+				file, err := fileDialog.SaveFinish(res)
+				if err != nil {
+					fmt.Println("Failed to open file dialog:", err)
+					return
+				}
+				if file == nil {
+					fmt.Println("No file selected")
+					return
+				}
+				fmt.Println("Selected file to save:", file.Path())
+
+				// Remove all children from vbox (Gtk4 doesn't have ForEach, use Remove on each child)
+				for {
+					child := vbox.FirstChild()
+					if child == nil {
+						break
+					}
+					vbox.Remove(child)
+				}
+
+				// Create a new box for download progress
+				progressBox := gtk.NewBox(gtk.OrientationVertical, 10)
+				progressBox.SetHAlign(gtk.AlignCenter)
+				progressBox.SetVAlign(gtk.AlignCenter)
+				progressBox.SetMarginTop(40)
+				progressBox.SetMarginBottom(40)
+				progressBox.SetMarginStart(40)
+				progressBox.SetMarginEnd(40)
+
+				spinnerDownload := gtk.NewSpinner()
+				spinnerDownload.SetHAlign(gtk.AlignCenter)
+				spinnerDownload.SetVAlign(gtk.AlignCenter)
+				spinnerDownload.Start()
+				progressBox.Append(spinnerDownload)
+
+				progress := gtk.NewProgressBar()
+				progress.SetVExpand(true)
+				progress.SetHExpand(true)
+				progress.SetMarginBottom(10)
+				progressBox.Append(progress)
+
+				downloadLabel := gtk.NewLabel(fmt.Sprintf("Downloading asset %s", selectedAsset.Name))
+				downloadLabel.SetHAlign(gtk.AlignCenter)
+				progressBox.Append(downloadLabel)
+
+				vbox.Append(progressBox)
+
+				// Run download simulation in a goroutine so the dialog closes immediately
+				go func() {
+					for i := 0; i <= 100; i += 10 {
+						time.Sleep(500 * time.Millisecond)
+						fraction := float64(i) / 100.0
+						glib.IdleAdd(func() {
+							progress.SetFraction(fraction)
+							progress.SetText(fmt.Sprintf("Downloading... %d%%", i))
+						})
+					}
+					glib.IdleAdd(func() {
+						spinnerDownload.Stop()
+						downloadLabel.SetText("Download complete!")
+						progress.SetText("Done!")
+
+						// Show the full path of the ISO file
+						filePathLabel := gtk.NewLabel(fmt.Sprintf("ISO saved to: %s", file.Path()))
+						filePathLabel.SetHAlign(gtk.AlignCenter)
+						filePathLabel.SetMarginTop(20)
+						progressBox.Append(filePathLabel)
+
+						// Create a 'Go Back' button
+						goBackBtn := gtk.NewButtonWithLabel("Go Back")
+						goBackBtn.SetHAlign(gtk.AlignCenter)
+						goBackBtn.SetMarginTop(20)
+						progressBox.Append(goBackBtn)
+
+						goBackBtn.ConnectClicked(func() {
+							// Remove all children from vbox
+							for {
+								child := vbox.FirstChild()
+								if child == nil {
+									break
+								}
+								vbox.Remove(child)
+							}
+							// TODO: Recreate the original UI (or close the window)
+							// For now, just close the window:
+							downloadWin.Close()
+						})
+					})
+				}()
+			})
+		})
 
 		// Helper to update dropdowns after fetching assets
 		var releaseAssets []ReleaseAsset // Store assets for dropdown logic
@@ -136,10 +268,12 @@ func getDownloadWindow() *gtk.Button {
 			if len(versions) > 0 {
 				versionDropdown.SetSelected(0)
 				latestVersion := versions[0]
+				filteredAssets = nil
 				var assetList []string
 				for _, a := range assets {
 					if a.Version == latestVersion && strings.HasSuffix(a.Name, ".iso") {
 						assetList = append(assetList, a.Name)
+						filteredAssets = append(filteredAssets, a)
 					}
 				}
 				assetDropdown.SetModel(gtk.NewStringList(assetList))
@@ -164,10 +298,12 @@ func getDownloadWindow() *gtk.Button {
 				fmt.Println("No release assets loaded yet")
 				return
 			}
+			filteredAssets = nil
 			assetList := []string{}
 			for _, a := range releaseAssets {
 				if a.Version == selectedVersion && strings.HasSuffix(a.Name, ".iso") {
 					assetList = append(assetList, a.Name)
+					filteredAssets = append(filteredAssets, a)
 				}
 			}
 			if len(assetList) == 0 {
@@ -292,11 +428,6 @@ func getDownloadWindow() *gtk.Button {
 				versionDropdown.SetSelected(0)
 			}
 		})
-		// Move refreshCacheBtn to the bottom of the vbox
-		refreshCacheBtn := gtk.NewButtonWithLabel("Refresh Releases")
-		refreshCacheBtn.SetHAlign(gtk.AlignCenter)
-		refreshCacheBtn.SetMarginTop(10)
-		refreshCacheBtn.SetVExpand(false)
 
 		// Remove previous vbox.Append(refreshCacheBtn)
 		// Instead, add a spacer and then append the button
