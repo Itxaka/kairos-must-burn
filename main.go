@@ -63,9 +63,7 @@ func main() {
 			if err != nil {
 				errorMsg = "Error: " + err.Error()
 			} else {
-				if runtime.GOOS == "linux" {
-					errorMsg = "Please run this application with sudo or as root."
-				} else if runtime.GOOS == "darwin" {
+				if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 					errorMsg = "Please run this application with sudo."
 				} else if runtime.GOOS == "windows" {
 					errorMsg = "Please right-click and select 'Run as administrator'."
@@ -104,6 +102,7 @@ func main() {
 			// Show dialog
 			dialog.SetVisible(true)
 			dialog.Present()
+			dialog.Focus()
 
 			// Connect exit button click
 			exitBtn.ConnectClicked(func() {
@@ -119,7 +118,7 @@ func main() {
 			return
 		}
 
-		burnBtn := gtk.NewButtonWithLabel("🔥Burn!")
+		burnBtn := gtk.NewButtonWithLabel("🔥 Burn!")
 		burnBtn.SetSensitive(false)
 
 		var isoPath string
