@@ -7,12 +7,13 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 var filteredAssets []ReleaseAsset // Store filtered assets for dropdowns
@@ -119,7 +120,6 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 		assetDownloadBtn.ConnectClicked(func() {
 			selectedIdx := assetDropdown.Selected()
 			if selectedIdx < 0 || int(selectedIdx) >= len(filteredAssets) {
-				fmt.Println("No valid asset selected")
 				return
 			}
 			selectedAsset := filteredAssets[selectedIdx]
@@ -141,14 +141,11 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 			fileDialog.Save(context.Background(), downloadWin, func(res gio.AsyncResulter) {
 				file, err := fileDialog.SaveFinish(res)
 				if err != nil {
-					fmt.Println("Failed to open file dialog:", err)
 					return
 				}
 				if file == nil {
-					fmt.Println("No file selected")
 					return
 				}
-				fmt.Println("Selected file to save:", file.Path())
 
 				// Remove all children from vbox (Gtk4 doesn't have ForEach, use Remove on each child)
 				for {
@@ -178,24 +175,131 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 				progress.SetVExpand(true)
 				progress.SetHExpand(true)
 				progress.SetMarginBottom(10)
+
+				progress.SetShowText(true) // Set a fixed height for the progress bar
 				progressBox.Append(progress)
 
-				downloadLabel := gtk.NewLabel(fmt.Sprintf("Downloading asset %s", selectedAsset.Name))
+				assetDownloadText := fmt.Sprintf("Downloading asset %s", selectedAsset.Name)
+				downloadLabel := gtk.NewLabel(assetDownloadText)
 				downloadLabel.SetHAlign(gtk.AlignCenter)
 				progressBox.Append(downloadLabel)
 
 				vbox.Append(progressBox)
 
-				// Run download simulation in a goroutine so the dialog closes immediately
+				// Run download in a goroutine so the dialog closes immediately
 				go func() {
-					for i := 0; i <= 100; i += 10 {
-						time.Sleep(500 * time.Millisecond)
-						fraction := float64(i) / 100.0
+					resp, err := http.Get(selectedAsset.URL)
+					if err != nil {
 						glib.IdleAdd(func() {
-							progress.SetFraction(fraction)
-							progress.SetText(fmt.Sprintf("Downloading... %d%%", i))
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Failed to download asset: " + err.Error())
+							progressBox.Append(goBackButton(downloadWin))
 						})
+						return
 					}
+
+					defer resp.Body.Close()
+					if resp.StatusCode != http.StatusOK {
+						glib.IdleAdd(func() {
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Failed to download asset: " + resp.Status)
+							progressBox.Append(goBackButton(downloadWin))
+						})
+						return
+					}
+
+					// Check for redirects
+					redirect := resp.Header.Get("Location")
+					if redirect != "" && redirect != selectedAsset.URL {
+						glib.IdleAdd(func() {
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Redirected to another URL: " + redirect)
+							progressBox.Append(goBackButton(downloadWin))
+						})
+						return
+					}
+
+					// get the size
+					contentLength := resp.ContentLength
+					// Read the response body
+					read := resp.Body
+
+					if err != nil {
+						glib.IdleAdd(func() {
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Failed to download asset")
+							progress.SetText("Error: " + err.Error())
+							progressBox.Append(goBackButton(downloadWin))
+						})
+						return
+					}
+					defer read.Close()
+					if redirect != "" {
+						glib.IdleAdd(func() {
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Redirected to another URL")
+							progress.SetText("Redirect: " + redirect)
+							progressBox.Append(goBackButton(downloadWin))
+						})
+						return
+					}
+
+					// now write the file
+					fileWriter, err := os.Create(file.Path())
+					if err != nil {
+						glib.IdleAdd(func() {
+							spinnerDownload.Stop()
+							downloadLabel.SetText("Failed to create file")
+							progress.SetText("Error: " + err.Error())
+							progressBox.Append(goBackButton(downloadWin))
+						})
+						return
+					}
+					defer fileWriter.Close()
+
+					// copy from read to fileWriter with progress
+					progress.SetFraction(0)
+					progress.SetText("Downloading...")
+					buf := make([]byte, 32*1024) // 32KB buffer
+					totalBytes := int64(0)
+					for {
+						n, err := read.Read(buf)
+						if n > 0 {
+							// Write to file
+							if _, err := fileWriter.Write(buf[:n]); err != nil {
+								glib.IdleAdd(func() {
+									spinnerDownload.Stop()
+									downloadLabel.SetText("Failed to write file")
+									progress.SetText("Error: " + err.Error())
+									progressBox.Append(goBackButton(downloadWin))
+								})
+								return
+							}
+							totalBytes += int64(n)
+							glib.IdleAdd(func() {
+								progress.SetFraction(float64(totalBytes) / float64(contentLength))
+								// set the downloaded size in Mb
+								totalBytesMb := totalBytes / (1024 * 1024)
+								// Set the final image size in Mb
+								contentLengthMb := contentLength / (1024 * 1024)
+								// Update the text with the current download size and total size
+								progress.SetText(fmt.Sprintf("Downloading... %d/%d MB", totalBytesMb, contentLengthMb))
+							})
+						}
+						if err != nil {
+							if err == io.EOF {
+								break // Download complete
+							}
+							glib.IdleAdd(func() {
+								spinnerDownload.Stop()
+								downloadLabel.SetText("Failed to read data")
+								progress.SetText("Error: " + err.Error())
+								progressBox.Append(goBackButton(downloadWin))
+							})
+							return
+						}
+					}
+
 					glib.IdleAdd(func() {
 						spinnerDownload.Stop()
 						downloadLabel.SetText("Download complete!")
@@ -206,26 +310,8 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 						filePathLabel.SetHAlign(gtk.AlignCenter)
 						filePathLabel.SetMarginTop(20)
 						progressBox.Append(filePathLabel)
+						progressBox.Append(goBackButton(downloadWin))
 
-						// Create a 'Go Back' button
-						goBackBtn := gtk.NewButtonWithLabel("Go Back")
-						goBackBtn.SetHAlign(gtk.AlignCenter)
-						goBackBtn.SetMarginTop(20)
-						progressBox.Append(goBackBtn)
-
-						goBackBtn.ConnectClicked(func() {
-							// Remove all children from vbox
-							for {
-								child := vbox.FirstChild()
-								if child == nil {
-									break
-								}
-								vbox.Remove(child)
-							}
-							// TODO: Recreate the original UI (or close the window)
-							// For now, just close the window:
-							downloadWin.Close()
-						})
 						// Call the callback to set the ISO path in the main window
 						onDownloaded(file.Path())
 					})
@@ -239,7 +325,6 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 		updateReleaseDropdowns := func(assets []ReleaseAsset, err error) {
 			spinner.Stop()
 			if err != nil || len(assets) == 0 {
-				fmt.Println("Failed to load releases:", err)
 				loadingLabel.SetText("Failed to load releases or no assets found.")
 				return
 			}
@@ -291,13 +376,11 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 			// This should be a GtkStringObject
 			selectedStr, ok := selectedObj.Cast().(*gtk.StringObject)
 			if !ok {
-				fmt.Println("Selected item is not a GtkStringObject")
 				return
 			}
 			selectedVersion := selectedStr.String()
 			// Update assetDropdown based on selected version
 			if releaseAssets == nil {
-				fmt.Println("No release assets loaded yet")
 				return
 			}
 			filteredAssets = nil
@@ -309,7 +392,6 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 				}
 			}
 			if len(assetList) == 0 {
-				fmt.Println("No assets found for version:", selectedVersion)
 				assetDropdown.SetModel(gtk.NewStringList([]string{"No assets available"}))
 				assetDropdown.SetSensitive(false)
 				return
@@ -410,12 +492,10 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 			for _, v := range lastVersionList {
 				re, err = regexp.Compile(search)
 				if re == nil && err != nil {
-					fmt.Println("Using simple search for filtering:", search)
 					if strings.Contains(strings.ToLower(v), search) {
 						filtered = append(filtered, v)
 					}
 				} else {
-					fmt.Println("Using regex for filtering:", re)
 					if re.MatchString(strings.ToLower(v)) {
 						filtered = append(filtered, v)
 					}
@@ -476,4 +556,15 @@ func getDownloadWindow(onDownloaded func(string)) *gtk.Button {
 	})
 
 	return downloadBtn
+}
+
+func goBackButton(window *gtk.Window) *gtk.Button {
+	goBackBtn := gtk.NewButtonWithLabel("Go Back")
+	goBackBtn.SetHAlign(gtk.AlignCenter)
+	goBackBtn.SetMarginTop(20)
+
+	goBackBtn.ConnectClicked(func() {
+		window.Close()
+	})
+	return goBackBtn
 }
