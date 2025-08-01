@@ -411,7 +411,7 @@ func main() {
 			})
 
 			// Filter asset dropdown on search entry change
-			assetSearchEntry.ConnectChanged(func() {
+			assetSearchEntry.Connect("search-changed", func() {
 				search := strings.ToLower(assetSearchEntry.Text())
 				filtered := []string{}
 				for _, name := range lastAssetList {
@@ -429,7 +429,8 @@ func main() {
 			})
 
 			// Filter version dropdown on search entry change
-			versionSearchEntry.ConnectChanged(func() {
+			// connect to search-changed with adds a delay otherwise the trigger is instant
+			versionSearchEntry.Connect("search-changed", func() {
 				search := strings.ToLower(versionSearchEntry.Text())
 				filtered := []string{}
 				for _, v := range lastVersionList {
